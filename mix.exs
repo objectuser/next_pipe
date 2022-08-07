@@ -9,6 +9,7 @@ defmodule NextPipe.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
+      docs: docs(),
       package: package(),
       name: "NextPipe"
     ]
@@ -32,6 +33,12 @@ defmodule NextPipe.MixProject do
     """
     Make pipelines a bit more flexible by skipping or always calling functions.
     """
+  end
+
+  defp docs do
+    [
+      main: "NextPipe"
+    ]
   end
 
   defp package do
