@@ -9,7 +9,7 @@ defmodule NextPipe.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
-      docs: docs(),
+      package: package(),
       name: "NextPipe"
     ]
   end
@@ -34,9 +34,9 @@ defmodule NextPipe.MixProject do
     """
   end
 
-  defp docs do
+  defp package do
     [
-      main: "NextPipe",
+      name: "next_pipe",
       maintainers: ["objectuser"],
       licenses: ["Apache-2.0"],
       links: %{
