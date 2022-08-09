@@ -143,11 +143,13 @@ def something(arg1, arg2) do
   try do
     Repo.transaction(fn repo ->
       arg1
-      |> fn1(arg2))
+      |> fn1(arg2)
       |> fn2()
     end)
   rescue
-    exception -> {:error, exception}
+    exception ->
+      repo.rollback(value)
+      {:error, exception}
   end
 end
 ```
