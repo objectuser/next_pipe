@@ -163,8 +163,8 @@ def something(arg1, arg2) do
     |> try_next(& fn1(&1, arg2))
     |> try_next(& fn2(&1))
     |> always(fn
-      fn {:error, value} -> repo.rollback(value)
-      fn value -> value
+      {:error, value} -> repo.rollback(value)
+      value -> value
     end)
   end)
 end
