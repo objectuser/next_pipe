@@ -11,6 +11,7 @@ defmodule NextPipe do
   |> next(fn ...)
   |> next(fn ...)
   |> try_next(fn ..., fn ...)
+  |> on_error(fn ...)
   |> always(fn ...)
   ```
 
@@ -18,10 +19,13 @@ defmodule NextPipe do
   the functions in `NextPipe` work with function arguments and idiomatic tuples,
   `{:ok, _}` and `{:error, _}`.
 
-  Use `next/2` to conditionally execute its function argument based on `value`.
-  If `value` matches `{:ok, _}` the function passed to `next/2` will be called
-  with the second element of the tuple. If `value` matches `{:error, _}`, the
-  function will not be called and the same tuple will be returned.
+  Use `next/2` to conditionally execute its function argument based on the value
+  of the first argument.
+
+  If the first argument matches `{:ok, _}`, the function passed as the second
+  argument will be called with the second element of the tuple passed in the
+  first argument. If the first argument matches `{:error, _}`, the function will
+  not be called and the same tuple will be returned by `next/2`.
 
   Otherwise (like at the beginning of a pipeline), the function will be called
   with `value`.
@@ -31,7 +35,9 @@ defmodule NextPipe do
   rescued.
 
   Use `always/2` to always call the function argument, but with the full
-  pipeline value, _not just_ the second element of the tuple.
+  argument value, _not just_ the second element of the tuple.
+
+  Use `on_error/2` to respond to an error tuple.
 
   ## As an alternative to `with`
 
@@ -42,6 +48,8 @@ defmodule NextPipe do
     with {:ok, value} <- fn1(arg1),
          {:ok, value} <- fn2(value, arg2) do
       fn3(value)
+    else
+      {:error, error} -> error_fn(error)
     end
   ```
 
@@ -49,14 +57,19 @@ defmodule NextPipe do
 
   ```elixir
     arg1
-    |> next(& fn1(&1))
+    |> next(& fn1/1)
     |> next(& fn2(&1, arg2))
-    |> next(& fn3(&1))
+    |> next(& fn3/1)
+    |> on_error(& error_fn/1)
   ```
 
-  Just like when using `with`, when creating a pipeline using `next/2`, if a
-  function returns `{:error, _}`, the subsequent functions passed to `next/2`
-  are skipped, effectively short-circuting the pipeline.
+  In the case of `with`, if a function result does not match with the left side
+  of the `<-` operator, the subsequent clauses are skipped. If there is an
+  `else` in the `with` it is used to handle the mismatch.
+
+  When using `next/2`, if the argument matches `{:error, _}` then the function
+  argument is not called and the first argument is returned unchained. In this
+  way, all `next/2` calls are effectively skipped in the pipeline.
 
   If one of the functions may raise an exception, more boilerplate code is
   eliminated.
@@ -74,7 +87,7 @@ defmodule NextPipe do
     end
   ```
 
-  To using `NextPipe`:
+  to the equivalent behavior using `NextPipe`:
 
   ```elixir
     arg1
@@ -140,52 +153,63 @@ defmodule NextPipe do
       arg1
       |> try_next(& fn1(&1, arg2))
       |> try_next(& fn2(&1))
-      |> always(fn
-        {:error, value} -> repo.rollback(value)
-        value -> value
-      end)
+      |> on_error(fn error -> Repo.rollback(error))
     end)
   end
   ```
   """
 
   @doc """
-  Conditionally call the next function with the pipeline value.
+  Conditionally call the next function.
 
-  If the pipeline value matches `{:ok, value}`, the `next_fn` is called with
+  If the first argument matches `{:ok, value}`, `next_fn` is called with
   `value`.
 
-  If the pipeline value matches `{:error, value}`, the call to `next_fn` will be
-  skipped and the pipeline value is returned unchanged.
+  If the first argument matches `{:error, _}`, the call to `next_fn` will be
+  skipped and the function returns the first argument is returned unchanged.
 
-  Otherwise, the function is called with the `value`, which supports the use of
-  `next/2` at the beginning of a pipeline.
+  Otherwise, the function is called with first argument unchanged. This supports
+  the use of `next/2` at the beginning of a pipeline.
 
-  `next_fn` must return `{:ok, value}` if it was successful. Otherwise, it must
-  return `{:error, value}`.
+  `next_fn` is expected to return `{:ok, value}` if it was successful.
+  Otherwise, it should return `{:error, value}`.
 
   `next/2` returns the value returned by `next_fn`.
   """
   @spec next(
           {:ok, any()} | {:error, any()} | any(),
-          (any() -> {:ok, any()} | {:error, any()})
-        ) ::
-          {:ok, any()} | {:error, any()}
-  def next({:ok, value}, next_fn) do
-    next_fn.(value)
-  end
+          next_fn :: (any() -> {:ok, any()} | {:error, any()})
+        ) :: {:ok, any()} | {:error, any()}
+  def next({:ok, value}, next_fn), do: next_fn.(value)
 
-  def next({:error, _value} = input, _next_fn) do
-    input
-  end
+  def next({:error, _value} = input, _next_fn), do: input
 
-  def next(value, next_fn) do
-    next_fn.(value)
-  end
+  def next(value, next_fn), do: next_fn.(value)
 
   @doc """
-  Conditionally call the next function with the pipeline value and provide an
-  outlet for handling exceptions when `next_fn` is called.
+  An alias for `next/2`.
+  """
+  @spec ok(
+          {:ok, any()} | {:error, any()} | any(),
+          ok_fn :: (any() -> {:ok, any()} | {:error, any()})
+        ) :: {:ok, any()} | {:error, any()}
+  def ok(input, f), do: next(input, f)
+
+  @doc """
+  The inverse of `next/2`, if the first argument matches `{:error, value}`, call
+  `error_fn` with `value`. Otherwise, return the first argument.
+  """
+  @spec on_error(
+          {:ok, any()} | {:error, any()},
+          error_fn :: (any() -> {:ok, any()} | {:error, any()})
+        ) :: {:ok, any()} | {:error, any()}
+  def on_error({:error, value} = _input, error_fn), do: error_fn.(value)
+
+  def on_error({:ok, _} = input, _error_fn), do: input
+
+  @doc """
+  Conditionally call the next function and provide an outlet for handling
+  exceptions when `next_fn` is called.
 
   This function generally behaves the same as `next/2` unless an exception is
   raised in `next_fn`.
@@ -193,7 +217,7 @@ defmodule NextPipe do
   In that case, the exception is rescued and `rescue_fn` is called with two
   arguments: the second element of the `{:ok, value}` tuple and the raised
   exception. The value returned from `try_next/3` is then the value returned
-  from `rescue_fn`. `rescue_fn` must return a value matching `{:ok, _}` or
+  from `rescue_fn`. `rescue_fn` should return a value matching `{:ok, _}` or
   `{:error, _}`.
 
   The default implementation of `rescue_fn` simply returns an `{:error,
@@ -201,11 +225,9 @@ defmodule NextPipe do
   """
   @spec try_next(
           {:ok, any()} | {:error, any()} | any(),
-          (any() -> {:ok, any()} | {:error, any()}),
-          (any(), any() -> {:ok, any()} | {:error, any()})
-        ) ::
-          {:ok, any()} | {:error, any()}
-
+          next_fn :: (any() -> {:ok, any()} | {:error, any()}),
+          rescue_fn :: (any(), any() -> {:ok, any()} | {:error, any()})
+        ) :: {:ok, any()} | {:error, any()}
   def try_next(value, next_fn, rescue_fn \\ fn _value, exception -> {:error, exception} end)
 
   def try_next({:ok, value}, next_fn, rescue_fn) do
@@ -217,25 +239,22 @@ defmodule NextPipe do
     end
   end
 
-  def try_next({:error, _value} = input, _next_fn, _rescue_fn) do
-    input
-  end
+  def try_next({:error, _value} = input, _next_fn, _rescue_fn), do: input
 
   def try_next(value, next_fn, rescue_fn), do: try_next({:ok, value}, next_fn, rescue_fn)
 
   @doc """
-  Always call `always_fn` with the pipeline value. Unlike `next`, the
+  Always call `always_fn` with the first argument. Unlike `next`, the
   `always_fn` receives the full tuple passed as the first argument to
-  `NextPipe.always/2`, i.e., `{:ok, value}` or `{:error, value}`.
+  `always/2`, i.e., `{:ok, value}` or `{:error, value}`.
 
   `always_fn` should return a value matching either `{:ok, _}` or `{:error, _}`.
+
+  This is basically the same as `then/2` with a more strict type spec.
   """
   @spec always(
           {:ok, any()} | {:error, any()},
-          (any() -> {:ok, any()} | {:error, any()})
-        ) ::
-          {:ok, any()} | {:error, any()}
-  def always(value, always_fn) do
-    always_fn.(value)
-  end
+          always_fn :: (any() -> {:ok, any()} | {:error, any()})
+        ) :: {:ok, any()} | {:error, any()}
+  def always(value, always_fn), do: always_fn.(value)
 end

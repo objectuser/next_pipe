@@ -5,7 +5,7 @@ defmodule NextPipeTest do
 
   describe "next/2" do
     test "{:ok, _} calls function" do
-      assert {:ok, :one} == next(:zero, fn :zero -> {:ok, :one} end)
+      assert {:ok, :one} == next({:ok, :zero}, fn :zero -> {:ok, :one} end)
     end
 
     test "multiple function arguments are fine" do
@@ -30,8 +30,12 @@ defmodule NextPipeTest do
     end
 
     test "otherwise calls the function" do
-      assert {:ok, :one} == next(:zero, fn :zero -> {:ok, :one} end)
+      assert {:ok, :one} ==
+               :zero
+               |> next(&zero/1)
     end
+
+    defp zero(:zero), do: {:ok, :one}
   end
 
   describe "always/2" do
@@ -88,6 +92,16 @@ defmodule NextPipeTest do
                  fn :zero -> raise "error" end,
                  fn :zero, %RuntimeError{message: "error"} -> {:error, :two} end
                )
+    end
+  end
+
+  describe "on_error/2" do
+    test "{:error, _} calls function" do
+      assert {:ok, :one} == on_error({:error, :zero}, fn :zero -> {:ok, :one} end)
+    end
+
+    test "{:ok, _} skips function" do
+      assert {:ok, :zero} == on_error({:ok, :zero}, fn :notcalled -> {:ok, :one} end)
     end
   end
 end
