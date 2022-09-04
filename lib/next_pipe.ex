@@ -153,7 +153,7 @@ defmodule NextPipe do
       arg1
       |> try_next(& fn1(&1, arg2))
       |> try_next(& fn2(&1))
-      |> on_error(fn error -> Repo.rollback(error))
+      |> on_error(fn error -> repo.rollback(error))
     end)
   end
   ```
@@ -166,7 +166,7 @@ defmodule NextPipe do
   `value`.
 
   If the first argument matches `{:error, _}`, the call to `next_fn` will be
-  skipped and the function returns the first argument is returned unchanged.
+  skipped and the function returns the first argument unchanged.
 
   Otherwise, the function is called with first argument unchanged. This supports
   the use of `next/2` at the beginning of a pipeline.
