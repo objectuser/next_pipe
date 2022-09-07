@@ -1,0 +1,74 @@
+# NextPipe
+
+```elixir
+Mix.install([{:next_pipe, "~> 0.1"}])
+```
+
+## Import
+
+```elixir
+import NextPipe
+```
+
+## next - evaluate {:ok, _} tuples
+
+```elixir
+:zero
+|> next(fn :zero -> {:ok, :one} end)
+|> next(fn :one -> {:ok, :two} end)
+|> next(fn :two -> {:ok, :three} end)
+# on_error is skipped because there's no error
+|> on_error(fn :four -> {:ok, :five} end)
+|> dbg()
+```
+
+```elixir
+:zero
+|> next(fn :zero -> {:ok, :one} end)
+|> next(fn :one -> {:ok, :two} end)
+|> next(fn :two -> {:error, :three} end)
+# the function passed below is never evaluated because there's an error
+|> next(fn :nope -> {:ok, :four} end)
+# the function below is evaulated because there is an error
+|> on_error(fn :three -> {:ok, :five} end)
+|> dbg()
+```
+
+## try_next - evaluate {:ok, _} tuples and capture exceptions
+
+```elixir
+:zero
+|> try_next(fn :zero -> {:ok, :one} end)
+|> try_next(fn :one -> {:ok, :two} end)
+|> try_next(fn :two -> raise "three" end)
+# The function below is skipped because there's an error with the caught exception
+|> try_next(fn :nope -> {:ok, :four} end)
+|> on_error(fn %RuntimeError{message: "three"} -> {:ok, :five} end)
+|> dbg()
+```
+
+```elixir
+:zero
+|> try_next(fn :zero -> {:ok, :one} end)
+|> try_next(fn :one -> {:ok, :two} end)
+# Override the rescue function and return an `{:ok, _}` tuple
+|> try_next(fn :two -> raise "three" end, fn :two, %RuntimeError{message: "three"} ->
+  {:ok, :three}
+end)
+|> try_next(fn :three -> {:ok, :four} end)
+# The function below is skipped because the exception was rescued
+|> on_error(fn %RuntimeError{message: "three"} -> {:ok, :five} end)
+|> dbg()
+```
+
+## ok - an alias for next
+
+```elixir
+:zero
+|> ok(fn :zero -> {:ok, :one} end)
+|> ok(fn :one -> {:ok, :two} end)
+|> ok(fn :two -> {:error, :three} end)
+|> ok(fn :nope -> {:ok, :four} end)
+|> on_error(fn :three -> {:ok, :five} end)
+|> dbg()
+```

@@ -4,7 +4,7 @@ defmodule NextPipe.MixProject do
   def project do
     [
       app: :next_pipe,
-      version: "0.2.1",
+      version: "0.2.2",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -37,7 +37,11 @@ defmodule NextPipe.MixProject do
 
   defp docs do
     [
-      main: "NextPipe"
+      main: "NextPipe",
+      extra_section: "Notebooks",
+      extras: [
+        "notebooks/next_pipe.livemd"
+      ]
     ]
   end
 

@@ -96,31 +96,6 @@ defmodule NextPipe do
     |> try_next(& fn3(&1))
   ```
 
-  ## Functions with multiple arguments
-
-  The function passed to `next/2` et al accepts a single argument. If multiple
-  arguments are required, return a new function with those arguments bound.
-
-  As an example, consider the following traditional Elixir pipeline:
-
-  ```elixir
-  def something(arg1, arg2) do
-    arg1
-    |> fn1(arg2)
-    |> fn2()
-  end
-  ```
-
-  The analogous pipeline using `next/2` might be:
-
-  ```elixir
-  def something(arg1, arg2) do
-    arg1
-    |> next(& fn1(&1, arg2))
-    |> next(& fn2(&1))
-  end
-  ```
-
   ## As an alternative to `Ecto.Multi`
 
   Transaction control with `Ecto.Multi` is quite powerful and flexible. It can,
@@ -155,6 +130,31 @@ defmodule NextPipe do
       |> try_next(& fn2(&1))
       |> on_error(fn error -> repo.rollback(error))
     end)
+  end
+  ```
+
+  ## Functions with multiple arguments
+
+  The function passed to `next/2` et al accepts a single argument. If multiple
+  arguments are required, return a new function with those arguments bound.
+
+  As an example, consider the following traditional Elixir pipeline:
+
+  ```elixir
+  def something(arg1, arg2) do
+    arg1
+    |> fn1(arg2)
+    |> fn2()
+  end
+  ```
+
+  The analogous pipeline using `next/2` might be:
+
+  ```elixir
+  def something(arg1, arg2) do
+    arg1
+    |> next(& fn1(&1, arg2))
+    |> next(& fn2(&1))
   end
   ```
   """
