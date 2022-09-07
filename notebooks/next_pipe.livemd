@@ -1,7 +1,15 @@
+<!-- livebook:{"persist_outputs":true} -->
+
 # NextPipe
 
 ```elixir
 Mix.install([{:next_pipe, "~> 0.1"}])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## Import
@@ -10,7 +18,15 @@ Mix.install([{:next_pipe, "~> 0.1"}])
 import NextPipe
 ```
 
-## next - evaluate {:ok, _} tuples
+<!-- livebook:{"output":true} -->
+
+```
+NextPipe
+```
+
+## Next
+
+`next/2`: evaulate the function argument if the first argument matches `{:ok, _}`
 
 ```elixir
 :zero
@@ -20,6 +36,25 @@ import NextPipe
 # on_error is skipped because there's no error
 |> on_error(fn :four -> {:ok, :five} end)
 |> dbg()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[notebooks/next_pipe.livemd#cell:7: (file)]
+:zero #=> :zero
+|> next(fn :zero -> {:ok, :one} end) #=> {:ok, :one}
+|> next(fn :one -> {:ok, :two} end) #=> {:ok, :two}
+|> next(fn :two -> {:ok, :three} end) #=> {:ok, :three}
+|> on_error(fn :four -> {:ok, :five} end) #=> {:ok, :three}
+
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, :three}
 ```
 
 ```elixir
@@ -34,7 +69,29 @@ import NextPipe
 |> dbg()
 ```
 
-## try_next - evaluate {:ok, _} tuples and capture exceptions
+<!-- livebook:{"output":true} -->
+
+```
+[notebooks/next_pipe.livemd#cell:9: (file)]
+:zero #=> :zero
+|> next(fn :zero -> {:ok, :one} end) #=> {:ok, :one}
+|> next(fn :one -> {:ok, :two} end) #=> {:ok, :two}
+|> next(fn :two -> {:error, :three} end) #=> {:error, :three}
+|> next(fn :nope -> {:ok, :four} end) #=> {:error, :three}
+|> on_error(fn :three -> {:ok, :five} end) #=> {:ok, :five}
+
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, :five}
+```
+
+## Try Next
+
+`try_next/3`: evaulate the function argument if the first argument matches `{:ok, _}` and provide an outlet for exceptions
 
 ```elixir
 :zero
@@ -45,6 +102,26 @@ import NextPipe
 |> try_next(fn :nope -> {:ok, :four} end)
 |> on_error(fn %RuntimeError{message: "three"} -> {:ok, :five} end)
 |> dbg()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[notebooks/next_pipe.livemd#cell:8: (file)]
+:zero #=> :zero
+|> try_next(fn :zero -> {:ok, :one} end) #=> {:ok, :one}
+|> try_next(fn :one -> {:ok, :two} end) #=> {:ok, :two}
+|> try_next(fn :two -> raise "three" end) #=> {:error, %RuntimeError{message: "three"}}
+|> try_next(fn :nope -> {:ok, :four} end) #=> {:error, %RuntimeError{message: "three"}}
+|> on_error(fn %RuntimeError{message: "three"} -> {:ok, :five} end) #=> {:ok, :five}
+
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, :five}
 ```
 
 ```elixir
@@ -61,7 +138,31 @@ end)
 |> dbg()
 ```
 
-## ok - an alias for next
+<!-- livebook:{"output":true} -->
+
+```
+[notebooks/next_pipe.livemd#cell:11: (file)]
+:zero #=> :zero
+|> try_next(fn :zero -> {:ok, :one} end) #=> {:ok, :one}
+|> try_next(fn :one -> {:ok, :two} end) #=> {:ok, :two}
+|> try_next(fn :two -> raise "three" end, fn :two, %RuntimeError{message: "three"} ->
+  {:ok, :three}
+end) #=> {:ok, :three}
+|> try_next(fn :three -> {:ok, :four} end) #=> {:ok, :four}
+|> on_error(fn %RuntimeError{message: "three"} -> {:ok, :five} end) #=> {:ok, :four}
+
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, :four}
+```
+
+## OK
+
+`ok/2`: an alias for `next/2`
 
 ```elixir
 :zero
@@ -71,4 +172,24 @@ end)
 |> ok(fn :nope -> {:ok, :four} end)
 |> on_error(fn :three -> {:ok, :five} end)
 |> dbg()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[notebooks/next_pipe.livemd#cell:7: (file)]
+:zero #=> :zero
+|> ok(fn :zero -> {:ok, :one} end) #=> {:ok, :one}
+|> ok(fn :one -> {:ok, :two} end) #=> {:ok, :two}
+|> ok(fn :two -> {:error, :three} end) #=> {:error, :three}
+|> ok(fn :nope -> {:ok, :four} end) #=> {:error, :three}
+|> on_error(fn :three -> {:ok, :five} end) #=> {:ok, :five}
+
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, :five}
 ```
