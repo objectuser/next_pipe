@@ -38,6 +38,25 @@ defmodule NextPipeTest do
     defp zero(:zero), do: {:ok, :one}
   end
 
+  describe "next_while/2" do
+    test "empty lists are ok" do
+      assert {:ok, []} == next_while([], fn item -> {:ok, item} end)
+    end
+
+    test "accumulates results" do
+      assert {:ok, [:three, :two, :one]} ==
+               next_while([:one, :two, :three], fn item -> {:ok, item} end)
+    end
+
+    test "halts on error with results" do
+      assert {:error, {:two, [:one]}} ==
+               next_while([:one, :two, :three], fn
+                 :one -> {:ok, :one}
+                 :two -> {:error, :two}
+               end)
+    end
+  end
+
   describe "always/2" do
     test "{:ok, _} calls function" do
       assert {:ok, :one} == always({:ok, :zero}, fn {:ok, :zero} -> {:ok, :one} end)
@@ -102,6 +121,20 @@ defmodule NextPipeTest do
 
     test "{:ok, _} skips function" do
       assert {:ok, :zero} == on_error({:ok, :zero}, fn :notcalled -> {:ok, :one} end)
+    end
+  end
+
+  describe "ok/1" do
+    test "value returns ok tuple" do
+      assert {:ok, :one} == ok(:one)
+    end
+
+    test "ok tuple returns ok tuple" do
+      assert {:ok, :one} == ok({:ok, :one})
+    end
+
+    test "error returns error" do
+      assert {:error, :one} == ok({:error, :one})
     end
   end
 end

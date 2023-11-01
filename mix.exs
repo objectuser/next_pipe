@@ -4,7 +4,7 @@ defmodule NextPipe.MixProject do
   def project do
     [
       app: :next_pipe,
-      version: "0.2.3",
+      version: "0.3.0",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -31,7 +31,7 @@ defmodule NextPipe.MixProject do
 
   defp description() do
     """
-    Make pipelines a bit more flexible by skipping or always calling functions.
+    Make pipelines a bit more flexible using idiomatic `{:ok, _}` and `{:error, _}` tuples.
     """
   end
 

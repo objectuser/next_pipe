@@ -169,3 +169,32 @@ def something(arg1, arg2) do
   end)
 end
 ```
+
+## Reducing
+
+Accumulating results from tuple-returning functions often involves the same boilerplate:
+
+```elixir
+Enum.reduce_while(enumerable, {:ok, []}, fn item, {:ok, results} ->
+  case ExternalSystem.call(item) do
+    {:ok, result} -> {:cont, {:ok, [result | results]}}
+    {:error, error} -> {:halt, {:error, {error, results}}}
+  end
+end)
+```
+
+The `next_while/2` function captures that:
+
+```elixir
+next_while(enumerable, &ExternalSystem.call(&1))
+```
+
+## Convenience
+
+Sometimes you just want to return `{:ok, _}`:
+
+```elixir
+list
+|> Enum.map(...)
+|> ok()
+```

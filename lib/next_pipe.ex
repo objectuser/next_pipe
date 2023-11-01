@@ -68,7 +68,7 @@ defmodule NextPipe do
   `else` in the `with` it is used to handle the mismatch.
 
   When using `next/2`, if the argument matches `{:error, _}` then the function
-  argument is not called and the first argument is returned unchained. In this
+  argument is not called and the first argument is returned unchanged. In this
   way, all `next/2` calls are effectively skipped in the pipeline.
 
   If one of the functions may raise an exception, more boilerplate code is
@@ -193,7 +193,21 @@ defmodule NextPipe do
           {:ok, any()} | {:error, any()} | any(),
           ok_fn :: (any() -> {:ok, any()} | {:error, any()})
         ) :: {:ok, any()} | {:error, any()}
-  def ok(input, f), do: next(input, f)
+  defdelegate ok(value, function), to: __MODULE__, as: :next
+
+  @doc """
+  Wrap the argument in an `{:ok, _}` tuple, if necessary. This is useful for
+  returning an `{:ok, _}` tuple at the end of a pipeline instead of, for
+  example, `|> then(&{:ok, &1})`
+
+  - `{:ok, value}` - return unchanged
+  - `{:error, value}` - return unchanged
+  - `value` - return `{:ok, value}`
+  """
+  @spec ok({:ok, any()} | {:error, any()} | any()) :: {:ok, any()} | {:error, any()}
+  def ok({:ok, _} = ok), do: ok
+  def ok({:error, _} = error), do: error
+  def ok(value), do: {:ok, value}
 
   @doc """
   The inverse of `next/2`, if the first argument matches `{:error, value}`, call
@@ -256,5 +270,29 @@ defmodule NextPipe do
           {:ok, any()} | {:error, any()},
           always_fn :: (any() -> {:ok, any()} | {:error, any()})
         ) :: {:ok, any()} | {:error, any()}
-  def always(value, always_fn), do: always_fn.(value)
+  defdelegate always(value, always_fn), to: Kernel, as: :then
+
+  @doc """
+  Process the enumerable against the function while the function returns `{:ok,
+  _}` tuples.
+
+  If all items are successful, the result is an `{:ok, items}` tuple, where
+  `items` is the list of values returned as the seccond item in the `{:ok,
+  item}` tuple from `function`.
+
+  If any call to function is unsuccessful, the loop is halted and the return
+  value is `{:error, {error, items}}`, where `error` is the error returned from
+  the unsuccessful function call and `items` is the list of items processed
+  successfully.
+  """
+  @spec next_while(Enumerable.t(), (any() -> {:ok, any()} | {:error, any()})) ::
+          {:ok, any()} | {:error, any()}
+  def next_while(enumerable, function) do
+    Enum.reduce_while(enumerable, {:ok, []}, fn item, {:ok, results} ->
+      case function.(item) do
+        {:ok, result} -> {:cont, {:ok, [result | results]}}
+        {:error, error} -> {:halt, {:error, {error, results}}}
+      end
+    end)
+  end
 end
