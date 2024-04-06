@@ -122,6 +122,10 @@ defmodule NextPipeTest do
     test "{:ok, _} skips function" do
       assert {:ok, :zero} == on_error({:ok, :zero}, fn :notcalled -> {:ok, :one} end)
     end
+
+    test "any other value skips function" do
+      assert :foo == on_error(:foo, fn :notcalled -> {:ok, :one} end)
+    end
   end
 
   describe "ok/1" do

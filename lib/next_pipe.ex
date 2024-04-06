@@ -111,7 +111,7 @@ defmodule NextPipe do
     try do
       Repo.transaction(fn repo ->
         arg1
-        |> fn1(arg2))
+        |> fn1(arg2)
         |> fn2()
       end)
     rescue
@@ -171,19 +171,18 @@ defmodule NextPipe do
   Otherwise, the function is called with first argument unchanged. This supports
   the use of `next/2` at the beginning of a pipeline.
 
-  `next_fn` is expected to return `{:ok, value}` if it was successful.
-  Otherwise, it should return `{:error, value}`.
-
   `next/2` returns the value returned by `next_fn`.
+
+  `next_fn` typically returns `{:ok, value}` if it was successful. Otherwise,
+  return `{:error, value}`. It may also make sense for `next_fn` to return a
+  value of a different shape, like in the last step of a pipeline.
   """
   @spec next(
           {:ok, any()} | {:error, any()} | any(),
           next_fn :: (any() -> {:ok, any()} | {:error, any()})
-        ) :: {:ok, any()} | {:error, any()}
+        ) :: {:ok, any()} | {:error, any()} | any()
   def next({:ok, value}, next_fn), do: next_fn.(value)
-
   def next({:error, _value} = input, _next_fn), do: input
-
   def next(value, next_fn), do: next_fn.(value)
 
   @doc """
@@ -192,7 +191,7 @@ defmodule NextPipe do
   @spec ok(
           {:ok, any()} | {:error, any()} | any(),
           ok_fn :: (any() -> {:ok, any()} | {:error, any()})
-        ) :: {:ok, any()} | {:error, any()}
+        ) :: {:ok, any()} | {:error, any()} | any()
   defdelegate ok(value, function), to: __MODULE__, as: :next
 
   @doc """
@@ -216,10 +215,9 @@ defmodule NextPipe do
   @spec on_error(
           {:ok, any()} | {:error, any()},
           error_fn :: (any() -> {:ok, any()} | {:error, any()})
-        ) :: {:ok, any()} | {:error, any()}
+        ) :: {:ok, any()} | {:error, any()} | any()
   def on_error({:error, value} = _input, error_fn), do: error_fn.(value)
-
-  def on_error({:ok, _} = input, _error_fn), do: input
+  def on_error(input, _error_fn), do: input
 
   @doc """
   Conditionally call the next function and provide an outlet for handling
